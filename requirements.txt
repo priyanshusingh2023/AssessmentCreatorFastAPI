@@ -6,3 +6,4 @@ gunicorn
 fastapi
 uvicorn
 httpx
+jinja2

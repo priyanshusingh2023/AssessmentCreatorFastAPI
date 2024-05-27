@@ -1,0 +1,34 @@
+{% block content %}
+I am creating an assessment with the following specifications. 
+Low complexity should be Blooms level 1 and 2 that test recall and comprehension. 
+Medium complexity should be Blooms level 3 of type application. 
+High complexity should be Blooms level 4 of type analysis, preferably scenario-based. 
+{{ prompt }}
+
+MCQ strictly has to be in below format:
+Format:
+**Question 1 question**
+A. Option 1
+B. Option 2
+C. Option 3
+D. Option 4
+
+**Answer: Option no. Answer**
+MCQ Format Example:
+**Question 10**
+What is the purpose of the following code?
+```c
+int arr[] = {1, 2, 3, 4, 5};
+int sum, product;
+sum = product = 1;
+for (int i = 0; i < 5; i++) {
+  sum += arr[i];
+  product *= arr[i];
+}```
+\nA. To calculate the sum and product of all elements in the array
+\nB. To calculate the average and standard deviation of all elements in the array
+\nC. To reverse the order of elements in the array
+\nD. To sort the elements in the array
+\nAnswer: A. To calculate the sum and product of all elements in the array
+No need to separate questions topic-wise and mention the topic and Write complete answer don't change the example format, all MCQ questions should be in given format
+{% endblock %}

@@ -8,7 +8,7 @@ class AssessmentCreatorTests(unittest.TestCase):
         self.app.testing = True
 
     def test_home(self):
-        response = self.app.get('api/v2/Assessment_creator/')
+        response = self.app.get('api/v2/')
         self.assertEqual(response.status_code, 200)
 
     def test_create_assessment_valid_request(self):
@@ -23,7 +23,7 @@ class AssessmentCreatorTests(unittest.TestCase):
                 }
             ]
         }
-        response = self.app.post('api/v2/Assessment_creator/generate_assessment', json=request_data)
+        response = self.app.post('api/v2/generate_assessment', json=request_data)
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.get_data())
         self.assertIn('assessment', data)

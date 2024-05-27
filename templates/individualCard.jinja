@@ -1,0 +1,7 @@
+{% if tools %}
+    {% set tools_str = " using " + tools | join(', ') %}
+{% else %}
+    {% set tools_str = "" %}
+{% endif %}
+{% set prompt = "I want " ~ no_of_questions ~ " assessment questions of " ~ level ~ " complexity for " ~ role ~ " on " ~ keywords | join(', ') ~ tools_str %}
+{{ prompt }}

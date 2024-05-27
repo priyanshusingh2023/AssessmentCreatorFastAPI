@@ -2,16 +2,25 @@ import httpx  # Used for making asynchronous HTTP requests
 import json  # Used for JSON manipulation
 from main.config import API_URL, API_KEY, GENERATION_CONFIG, SAFETY_SETTINGS  # Imports configuration settings
 import logging
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Set up Jinja environment
+env = Environment(
+    loader=FileSystemLoader('templates'),  # Load templates from the 'templates' directory
+    autoescape=select_autoescape(['html', 'xml', 'jinja'])  # Autoescape HTML, XML, and Jinja templates
+)
+
 
 def generate_prompt_assessment(assessment_data):
     """
     Generates a list of assessment prompts based on provided assessment data.
 
     Parameters:
-    assessment_data (dict): A dictionary containing the keys 'role' and 'cards'.
+    assessment_data (dict): A dictionary containing the keys 'role' and 'card'.
         Each 'card' should have 'keywords', 'tools', 'level', and 'noOfQuestions'.
 
     Returns:
@@ -20,6 +29,7 @@ def generate_prompt_assessment(assessment_data):
     Raises:
     ValueError: If the required keys are missing in `assessment_data` or any of its 'cards'.
     """
+    # Check if all required keys are present in assessment_data
     required_keys = ['role', 'card']
     if not all(key in assessment_data for key in required_keys):
         raise ValueError("Missing required assessment data")
@@ -27,27 +37,40 @@ def generate_prompt_assessment(assessment_data):
     role = assessment_data['role']
     card = assessment_data['card']
 
-    keywords = card.get('keywords')
-    tools = card.get('tools', [])
-    level = card.get('level')
-    no_of_questions = card.get('noOfQuestions')
+    keywords = card.get('keywords')  # Get keywords from the card
+    tools = card.get('tools', [])  # Get tools from the card (default to empty list if not present)
+    level = card.get('level')  # Get level from the card
+    no_of_questions = card.get('noOfQuestions')  # Get number of questions from the card
 
+    # Check if any required field is missing
     if not (keywords and tools is not None and level and no_of_questions):
         raise ValueError("Missing required fields in one of the cards")
 
+    # Check if number of questions is valid
     if int(no_of_questions) < 1:
         raise ValueError("Number of questions must be greater than 1")
-
+    
+    # Check if level is valid
     if level.lower() not in ['low', 'medium', 'high']:
         raise ValueError("Level must be 'low', 'medium', or 'high'")
+    
+    # Get the Jinja template for individual card
+    template = env.get_template('individualCard.jinja')
 
-    tools_str = f" using {', '.join(tools)}" if tools else ""
-    # Create the prompt
-    prompt = f"I want {no_of_questions} assessment questions of {level} complexity for {role} on {', '.join(keywords)}{tools_str}."
+    # Data to be passed into the template
+    context = {
+        'no_of_questions': no_of_questions,
+        'level': level,
+        'role': role,
+        'keywords': keywords,
+        'tools': tools
+    }
 
-    logging.debug(f"Generated prompt: {prompt}")
+    # Render the template with the context data
+    prompt = template.render(context)
 
     return prompt
+
 
 async def get_result(prompt):
     """
@@ -62,51 +85,19 @@ async def get_result(prompt):
     Raises:
     Exception: If there is an error in getting a response from the external API.
     """
-
-     # Predefined prompt for setting the context of generated content
-    final_prompt = ("I am creating an assessment with the following specifications. "
-                    "Low complexity should be Blooms level 1 and 2 that test recall and comprehension. "
-                    "Medium complexity should be Blooms level 3 of type application. "
-                    "High complexity should be Blooms level 4 of type analysis, preferably scenario-based. "
-                    f"\n{prompt}")
-
-    logging.debug(f"Final prompt: {final_prompt}")
-
-    example_format = (
-            "MCQ strictly has to be in below format:\n"
-            "Format:\n **Question 1 question**\n"
-            "A. Option 1\n"
-            "B. Option 2\n"
-            "C. Option 3\n"
-            "D. Option 4\n"
-            "\n**Answer: Option no. Answer**\n"
-            "MCQ Format Example:\n"
-            "**Question 10**\n"
-            "What is the purpose of the following code?\n"
-            "```c\n"
-            "int arr[] = {1, 2, 3, 4, 5};\n"
-            "int sum, product;\n"
-            "sum = product = 1;\n"
-            "for (int i = 0; i < 5; i++) {\n"
-            "  sum += arr[i];\n"
-            "  product *= arr[i];\n"
-            "}\n"
-            "```\n"
-            "A. To calculate the sum and product of all elements in the array\n"
-            "B. To calculate the average and standard deviation of all elements in the array\n"
-            "C. To reverse the order of elements in the array\n"
-            "D. To sort the elements in the array\n"
-            "\n**Answer: A. To calculate the sum and product of all elements in the array**\n"
-            "No need to separate questions topic-wise and mention the topic and Write complete answer don't change the example format, all MCQ questions should be in given format"
-        )
+    # Get the Jinja template for prompt
+    template = env.get_template('prompt_template.jinja')
+    final_prompt = template.render(prompt=prompt)
     
+    # Log the generation process
     logging.info("Generating assessment content.")
+    
+    # Construct API URL
     apiUrl = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={API_KEY}"
 
-
-
+    # Construct request body
     request_body = {
-        "contents": [{"parts": [{"text": prompt + example_format}]}],
+        "contents": [{"parts": [{"text": final_prompt}]}],
         "generationConfig": GENERATION_CONFIG,
         "safetySettings": SAFETY_SETTINGS
     }
